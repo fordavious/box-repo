@@ -29,6 +29,9 @@ const ComparisonResult = ({
   // Track review stage (1: View, 2: Action, 3: Commentary, 4: Confirm)
   const [reviewStage, setReviewStage] = useState(1);
   
+  // Flag to show modify input after clicking modify button
+  const [showModifyInput, setShowModifyInput] = useState(false);
+  
   // Store R Commentary for each difference
   const [reviewCommentary, setReviewCommentary] = useState("");
   const [modifiedValue, setModifiedValue] = useState(null);
@@ -199,6 +202,7 @@ const ComparisonResult = ({
     setReviewDecisions([]);
     setReviewCommentary("");
     setShowReview(true);
+    setShowModifyInput(false);
   };
 
   const handleResetTracking = () => {
@@ -228,20 +232,67 @@ const ComparisonResult = ({
     if (action === 'accept') {
       actionText = "Accepted";
       finalValue = newVal;  // Use new value
+      
+      // Create a temporary decision record
+      const decision = {
+        diffIndex: currentDiffIndex,
+        colIndex: currentColIndex,
+        action: actionText,
+        field: column,
+        previousValue: oldVal,
+        newValue: finalValue,
+        rCommentary: ''  // Will be filled in next step
+      };
+      
+      // Store the decision temporarily
+      setReviewDecisions(prev => [...prev, decision]);
+      
+      // Move to commentary stage
+      setReviewStage(3);
+      
     } else if (action === 'deny') {
       actionText = "Denied";
       finalValue = oldVal;  // Revert to old value
+      
+      // Create a temporary decision record
+      const decision = {
+        diffIndex: currentDiffIndex,
+        colIndex: currentColIndex,
+        action: actionText,
+        field: column,
+        previousValue: oldVal,
+        newValue: finalValue,
+        rCommentary: ''  // Will be filled in next step
+      };
+      
+      // Store the decision temporarily
+      setReviewDecisions(prev => [...prev, decision]);
+      
+      // Move to commentary stage
+      setReviewStage(3);
+      
     } else if (action === 'modify') {
-      actionText = "Modified";
-      // Use the value from the input field
-      finalValue = modifiedValue !== null ? modifiedValue : newVal;
+      // Show the modify input field
+      setShowModifyInput(true);
+      // Don't proceed to next stage yet
     }
+  };
+  
+  // Handle submission of modified value
+  const handleModifySubmit = () => {
+    if (!currentDiff || !currentColDiff) return;
+    
+    const column = currentColDiff.column;
+    const oldVal = currentColDiff.old_value;
+    
+    // Use the value from the input field
+    const finalValue = modifiedValue !== null ? modifiedValue : currentColDiff.new_value;
     
     // Create a temporary decision record
     const decision = {
       diffIndex: currentDiffIndex,
       colIndex: currentColIndex,
-      action: actionText,
+      action: "Modified",
       field: column,
       previousValue: oldVal,
       newValue: finalValue,
@@ -250,6 +301,9 @@ const ComparisonResult = ({
     
     // Store the decision temporarily
     setReviewDecisions(prev => [...prev, decision]);
+    
+    // Reset the modify input state
+    setShowModifyInput(false);
     
     // Move to commentary stage
     setReviewStage(3);
@@ -290,6 +344,7 @@ const ComparisonResult = ({
     // Reset to view stage
     setReviewStage(1);
     setModifiedValue(null);
+    setShowModifyInput(false);
   };
   
   // Move to next difference or column
@@ -297,6 +352,7 @@ const ComparisonResult = ({
     // Reset review stage
     setReviewStage(1);
     setModifiedValue(null);
+    setShowModifyInput(false);
     
     // If there are more columns in the current difference
     if (currentDiff && currentColIndex < currentDiff.columns.length - 1) {
@@ -364,53 +420,105 @@ const ComparisonResult = ({
           Comparison Completed Successfully
         </h3>
         <p>All changes have been successfully processed and saved.</p>
+        
+        {/* Display changes individually */}
         <div style={{ marginTop: '1.5rem' }}>
-          <strong>{reviewDecisions.length} changes were processed:</strong>
-          <ul style={{ 
-            listStyle: 'none', 
-            padding: 0,
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '2rem',
-            marginTop: '1rem'
+          <h4>Processed Changes:</h4>
+          <div style={{ 
+            maxHeight: '300px', 
+            overflowY: 'auto', 
+            border: '1px solid #dde2e9',
+            borderRadius: '4px',
+            background: 'white',
+            margin: '1rem auto',
+            maxWidth: '800px'
           }}>
-            <li>
-              <span style={{ 
-                display: 'inline-block',
-                padding: '0.5rem 1rem',
-                backgroundColor: '#e6f4ea',
-                borderRadius: '4px',
-                fontWeight: '500',
-                color: '#16813d'
-              }}>
-                {reviewDecisions.filter(d => d.action === "Accepted").length} Accepted
-              </span>
-            </li>
-            <li>
-              <span style={{ 
-                display: 'inline-block',
-                padding: '0.5rem 1rem',
-                backgroundColor: '#ffebee',
-                borderRadius: '4px',
-                fontWeight: '500',
-                color: '#e74c3c'
-              }}>
-                {reviewDecisions.filter(d => d.action === "Denied").length} Denied
-              </span>
-            </li>
-            <li>
-              <span style={{ 
-                display: 'inline-block',
-                padding: '0.5rem 1rem',
-                backgroundColor: '#fff8e6',
-                borderRadius: '4px',
-                fontWeight: '500',
-                color: '#f39c12'
-              }}>
-                {reviewDecisions.filter(d => d.action === "Modified").length} Modified
-              </span>
-            </li>
-          </ul>
+            <table style={{ 
+              width: '100%', 
+              borderCollapse: 'collapse',
+              textAlign: 'left'
+            }}>
+              <thead>
+                <tr>
+                  <th style={{ 
+                    padding: '0.75rem', 
+                    borderBottom: '1px solid #dde2e9', 
+                    fontWeight: '500' 
+                  }}>Business Unit</th>
+                  <th style={{ 
+                    padding: '0.75rem', 
+                    borderBottom: '1px solid #dde2e9', 
+                    fontWeight: '500' 
+                  }}>C_Line</th>
+                  <th style={{ 
+                    padding: '0.75rem', 
+                    borderBottom: '1px solid #dde2e9', 
+                    fontWeight: '500' 
+                  }}>Field</th>
+                  <th style={{ 
+                    padding: '0.75rem', 
+                    borderBottom: '1px solid #dde2e9', 
+                    fontWeight: '500',
+                    textAlign: 'right'
+                  }}>Previous Value</th>
+                  <th style={{ 
+                    padding: '0.75rem', 
+                    borderBottom: '1px solid #dde2e9', 
+                    fontWeight: '500',
+                    textAlign: 'right'
+                  }}>New Value</th>
+                  <th style={{ 
+                    padding: '0.75rem', 
+                    borderBottom: '1px solid #dde2e9', 
+                    fontWeight: '500' 
+                  }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reviewDecisions.map((decision, index) => {
+                  const diff = differences[decision.diffIndex];
+                  return (
+                    <tr key={index}>
+                      <td style={{ padding: '0.75rem', borderBottom: '1px solid #f2f2f2' }}>
+                        {diff['BH Level 5']}
+                      </td>
+                      <td style={{ padding: '0.75rem', borderBottom: '1px solid #f2f2f2' }}>
+                        {diff['C_Line']}
+                      </td>
+                      <td style={{ padding: '0.75rem', borderBottom: '1px solid #f2f2f2' }}>
+                        {decision.field}
+                      </td>
+                      <td style={{ padding: '0.75rem', borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}>
+                        ${decision.previousValue.toLocaleString()}
+                      </td>
+                      <td style={{ padding: '0.75rem', borderBottom: '1px solid #f2f2f2', textAlign: 'right' }}>
+                        ${decision.newValue.toLocaleString()}
+                      </td>
+                      <td style={{ padding: '0.75rem', borderBottom: '1px solid #f2f2f2' }}>
+                        <span style={{ 
+                          display: 'inline-block',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '4px',
+                          fontSize: '0.8rem',
+                          fontWeight: '500',
+                          backgroundColor: 
+                            decision.action === 'Accepted' ? '#e6f4ea' : 
+                            decision.action === 'Denied' ? '#ffebee' : 
+                            '#fff8e6',
+                          color: 
+                            decision.action === 'Accepted' ? '#16813d' : 
+                            decision.action === 'Denied' ? '#e74c3c' : 
+                            '#f39c12'
+                        }}>
+                          {decision.action}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     );
@@ -692,23 +800,42 @@ const ComparisonResult = ({
                       </button>
                     </div>
                     
-                    <div style={{ marginBottom: '1rem' }}>
-                      <label htmlFor="modified-value" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
-                        Custom value (if modifying):
-                      </label>
-                      <input 
-                        type="number" 
-                        id="modified-value" 
-                        defaultValue={currentColDiff.new_value}
-                        onChange={handleModifyValueChange}
-                        style={{
-                          width: '100%',
-                          padding: '0.75rem',
-                          border: '1px solid #dde2e9',
-                          borderRadius: '4px'
-                        }}
-                      />
-                    </div>
+                    {/* Only show modify input after clicking the Modify button */}
+                    {showModifyInput && (
+                      <div style={{ marginBottom: '1rem' }}>
+                        <label htmlFor="modified-value" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>
+                          Enter custom value:
+                        </label>
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                          <input 
+                            type="number" 
+                            id="modified-value" 
+                            defaultValue={currentColDiff.new_value}
+                            onChange={handleModifyValueChange}
+                            style={{
+                              flex: '1',
+                              padding: '0.75rem',
+                              border: '1px solid #dde2e9',
+                              borderRadius: '4px'
+                            }}
+                          />
+                          <button
+                            onClick={handleModifySubmit}
+                            style={{
+                              background: '#f39c12',
+                              color: 'white',
+                              border: 'none',
+                              padding: '0.5rem 1rem',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontWeight: '500'
+                            }}
+                          >
+                            Apply Modified Value
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
