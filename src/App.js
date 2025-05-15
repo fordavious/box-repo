@@ -18,6 +18,12 @@ function App() {
   // State for the comparison workflow
   const [currentStep, setCurrentStep] = useState(1);
   
+  // State for consolidated file (first step)
+  const [useConsolidated, setUseConsolidated] = useState(true);
+  const [consolidatedFolder, setConsolidatedFolder] = useState(null);
+  const [consolidatedFile, setConsolidatedFile] = useState(null);
+  const [consolidatedSheet, setConsolidatedSheet] = useState(null);
+  
   // State for original file
   const [originalFolder, setOriginalFolder] = useState(null);
   const [originalFile, setOriginalFile] = useState(null);
@@ -28,89 +34,118 @@ function App() {
   const [comparisonFile, setComparisonFile] = useState(null);
   const [comparisonSheet, setComparisonSheet] = useState(null);
   
-  // State for consolidated file (optional)
-  const [useConsolidated, setUseConsolidated] = useState(false);
-  const [consolidatedFolder, setConsolidatedFolder] = useState(null);
-  const [consolidatedFile, setConsolidatedFile] = useState(null);
-  const [consolidatedSheet, setConsolidatedSheet] = useState(null);
-  
   // Error state
   const [error, setError] = useState(null);
   
   // Completion state
   const [workflowCompleted, setWorkflowCompleted] = useState(false);
 
-  // Handle original folder selection
-  const handleOriginalFolderSelect = (folder) => {
-    setOriginalFolder(folder);
-    setCurrentStep(2);
-  };
+  // State for selection progress within each step
+  const [consolidatedStep, setConsolidatedStep] = useState(1); // 1=folder, 2=file, 3=sheet
+  const [originalStep, setOriginalStep] = useState(1); // 1=folder, 2=file, 3=sheet
+  const [comparisonStep, setComparisonStep] = useState(1); // 1=folder, 2=file, 3=sheet
 
-  // Handle original file selection
-  const handleOriginalFileSelect = (file) => {
-    setOriginalFile(file);
-    setCurrentStep(3);
-  };
-
-  // Handle original sheet selection
-  const handleOriginalSheetSelect = (sheet) => {
-    setOriginalSheet(sheet);
-    setCurrentStep(4);
-  };
-
-  // Handle comparison folder selection
-  const handleComparisonFolderSelect = (folder) => {
-    setComparisonFolder(folder);
-    setCurrentStep(5);
-  };
-
-  // Handle comparison file selection
-  const handleComparisonFileSelect = (file) => {
-    setComparisonFile(file);
-    setCurrentStep(6);
-  };
-
-  // Handle comparison sheet selection
-  const handleComparisonSheetSelect = (sheet) => {
-    setComparisonSheet(sheet);
-    
-    // If consolidated is enabled, go to consolidated selection
-    // Otherwise, go to comparison step
-    if (useConsolidated) {
-      setCurrentStep(7);
-    } else {
-      setCurrentStep(10);
-    }
-  };
-
-  // Toggle consolidated file usage
+  // Handle toggle consolidated usage
   const handleToggleConsolidated = (e) => {
     setUseConsolidated(e.target.checked);
+    
+    // Reset consolidated selections if turning off
+    if (!e.target.checked) {
+      setConsolidatedFolder(null);
+      setConsolidatedFile(null);
+      setConsolidatedSheet(null);
+      setConsolidatedStep(1);
+    }
   };
 
   // Handle consolidated folder selection
   const handleConsolidatedFolderSelect = (folder) => {
     setConsolidatedFolder(folder);
-    setCurrentStep(8);
+    setConsolidatedStep(2); // Move to file selection
   };
 
   // Handle consolidated file selection
   const handleConsolidatedFileSelect = (file) => {
     setConsolidatedFile(file);
-    setCurrentStep(9);
+    setConsolidatedStep(3); // Move to sheet selection
   };
 
   // Handle consolidated sheet selection
   const handleConsolidatedSheetSelect = (sheet) => {
     setConsolidatedSheet(sheet);
-    setCurrentStep(10);
+    setConsolidatedStep(4); // Complete
+  };
+
+  // Handle proceeding from consolidated step
+  const handleConsolidatedStepComplete = () => {
+    if (!useConsolidated || (consolidatedFolder && consolidatedFile && consolidatedSheet)) {
+      setCurrentStep(2); // Proceed to original file
+      setOriginalStep(1); // Reset to folder selection
+    } else {
+      setError('Please complete all consolidated selections before proceeding.');
+    }
+  };
+
+  // Handle original folder selection
+  const handleOriginalFolderSelect = (folder) => {
+    setOriginalFolder(folder);
+    setOriginalStep(2); // Move to file selection
+  };
+
+  // Handle original file selection
+  const handleOriginalFileSelect = (file) => {
+    setOriginalFile(file);
+    setOriginalStep(3); // Move to sheet selection
+  };
+
+  // Handle original sheet selection
+  const handleOriginalSheetSelect = (sheet) => {
+    setOriginalSheet(sheet);
+    setOriginalStep(4); // Complete
+  };
+
+  // Handle proceeding from original step
+  const handleOriginalStepComplete = () => {
+    if (originalFolder && originalFile && originalSheet) {
+      setCurrentStep(3); // Proceed to comparison file
+      setComparisonStep(1); // Reset to folder selection
+    } else {
+      setError('Please complete all original file selections before proceeding.');
+    }
+  };
+
+  // Handle comparison folder selection
+  const handleComparisonFolderSelect = (folder) => {
+    setComparisonFolder(folder);
+    setComparisonStep(2); // Move to file selection
+  };
+
+  // Handle comparison file selection
+  const handleComparisonFileSelect = (file) => {
+    setComparisonFile(file);
+    setComparisonStep(3); // Move to sheet selection
+  };
+
+  // Handle comparison sheet selection
+  const handleComparisonSheetSelect = (sheet) => {
+    setComparisonSheet(sheet);
+    setComparisonStep(4); // Complete
+  };
+
+  // Handle proceeding from comparison step
+  const handleComparisonStepComplete = () => {
+    if (comparisonFolder && comparisonFile && comparisonSheet) {
+      setCurrentStep(4); // Proceed to comparison
+    } else {
+      setError('Please complete all comparison file selections before proceeding.');
+    }
   };
 
   // Handle comparison completion
   const handleComparisonComplete = () => {
     setWorkflowCompleted(true);
     
-    // After 3 seconds, reset the workflow
+    // After 5 seconds, reset the workflow
     setTimeout(() => {
       resetWorkflow();
     }, 5000);
@@ -125,10 +160,13 @@ function App() {
     setComparisonFolder(null);
     setComparisonFile(null);
     setComparisonSheet(null);
-    setUseConsolidated(false);
+    setUseConsolidated(true);
     setConsolidatedFolder(null);
     setConsolidatedFile(null);
     setConsolidatedSheet(null);
+    setConsolidatedStep(1);
+    setOriginalStep(1);
+    setComparisonStep(1);
     setWorkflowCompleted(false);
     setError(null);
   };
@@ -259,8 +297,9 @@ function App() {
                     whiteSpace: 'nowrap'
                   }}
                 >
-                  1. Original Folder
+                  1. Consolidated File
                 </div>
+                
                 <div 
                   style={{
                     padding: '0.5rem 1rem',
@@ -274,6 +313,7 @@ function App() {
                 >
                   2. Original File
                 </div>
+                
                 <div 
                   style={{
                     padding: '0.5rem 1rem',
@@ -285,8 +325,9 @@ function App() {
                     whiteSpace: 'nowrap'
                   }}
                 >
-                  3. Original Sheet
+                  3. Comparison File
                 </div>
+                
                 <div 
                   style={{
                     padding: '0.5rem 1rem',
@@ -298,89 +339,7 @@ function App() {
                     whiteSpace: 'nowrap'
                   }}
                 >
-                  4. Comparison Folder
-                </div>
-                <div 
-                  style={{
-                    padding: '0.5rem 1rem',
-                    backgroundColor: currentStep >= 5 ? '#e8f1fd' : '#f5f7fa',
-                    color: currentStep >= 5 ? '#0061d5' : '#5a5a5a',
-                    borderRadius: '4px',
-                    border: currentStep >= 5 ? '1px solid #0061d5' : '1px solid #dde2e9',
-                    fontWeight: currentStep >= 5 ? '500' : 'normal',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  5. Comparison File
-                </div>
-                <div 
-                  style={{
-                    padding: '0.5rem 1rem',
-                    backgroundColor: currentStep >= 6 ? '#e8f1fd' : '#f5f7fa',
-                    color: currentStep >= 6 ? '#0061d5' : '#5a5a5a',
-                    borderRadius: '4px',
-                    border: currentStep >= 6 ? '1px solid #0061d5' : '1px solid #dde2e9',
-                    fontWeight: currentStep >= 6 ? '500' : 'normal',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  6. Comparison Sheet
-                </div>
-                {useConsolidated && (
-                  <>
-                    <div 
-                      style={{
-                        padding: '0.5rem 1rem',
-                        backgroundColor: currentStep >= 7 ? '#e8f1fd' : '#f5f7fa',
-                        color: currentStep >= 7 ? '#0061d5' : '#5a5a5a',
-                        borderRadius: '4px',
-                        border: currentStep >= 7 ? '1px solid #0061d5' : '1px solid #dde2e9',
-                        fontWeight: currentStep >= 7 ? '500' : 'normal',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      7. Consolidated Folder
-                    </div>
-                    <div 
-                      style={{
-                        padding: '0.5rem 1rem',
-                        backgroundColor: currentStep >= 8 ? '#e8f1fd' : '#f5f7fa',
-                        color: currentStep >= 8 ? '#0061d5' : '#5a5a5a',
-                        borderRadius: '4px',
-                        border: currentStep >= 8 ? '1px solid #0061d5' : '1px solid #dde2e9',
-                        fontWeight: currentStep >= 8 ? '500' : 'normal',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      8. Consolidated File
-                    </div>
-                    <div 
-                      style={{
-                        padding: '0.5rem 1rem',
-                        backgroundColor: currentStep >= 9 ? '#e8f1fd' : '#f5f7fa',
-                        color: currentStep >= 9 ? '#0061d5' : '#5a5a5a',
-                        borderRadius: '4px',
-                        border: currentStep >= 9 ? '1px solid #0061d5' : '1px solid #dde2e9',
-                        fontWeight: currentStep >= 9 ? '500' : 'normal',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      9. Consolidated Sheet
-                    </div>
-                  </>
-                )}
-                <div 
-                  style={{
-                    padding: '0.5rem 1rem',
-                    backgroundColor: currentStep >= 10 ? '#e8f1fd' : '#f5f7fa',
-                    color: currentStep >= 10 ? '#0061d5' : '#5a5a5a',
-                    borderRadius: '4px',
-                    border: currentStep >= 10 ? '1px solid #0061d5' : '1px solid #dde2e9',
-                    fontWeight: currentStep >= 10 ? '500' : 'normal',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {useConsolidated ? '10. Compare' : '7. Compare'}
+                  4. Compare
                 </div>
               </div>
               
@@ -391,149 +350,751 @@ function App() {
                 borderRadius: '8px',
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
               }}>
-                {/* Original Folder */}
+                {/* Step 1: Consolidated File Selection */}
                 {currentStep === 1 && (
                   <div>
-                    <h3>Step 1: Select Original Folder</h3>
-                    <p>Browse and select the folder containing your original Excel file.</p>
-                    <FolderBrowser onFolderSelect={handleOriginalFolderSelect} />
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '1.5rem'
+                    }}>
+                      <h3 style={{ margin: 0 }}>Step 1: Consolidated File</h3>
+                      
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '0.75rem',
+                        padding: '0.5rem 1rem',
+                        background: '#f5f7fa',
+                        borderRadius: '4px',
+                        border: '1px solid #dde2e9',
+                      }}>
+                        <label style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '0.75rem',
+                          cursor: 'pointer'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={useConsolidated}
+                            onChange={handleToggleConsolidated}
+                            style={{
+                              width: '1.2rem',
+                              height: '1.2rem'
+                            }}
+                          />
+                          <span style={{ fontWeight: '500' }}>Include consolidated file</span>
+                        </label>
+                      </div>
+                    </div>
+                    
+                    {useConsolidated ? (
+                      <>
+                        {/* Step 1: Folder Selection */}
+                        {consolidatedStep === 1 && (
+                          <div style={{ maxHeight: '400px', overflow: 'auto', border: '1px solid #dde2e9', borderRadius: '4px', marginBottom: '1.5rem' }}>
+                            <FolderBrowser onFolderSelect={handleConsolidatedFolderSelect} />
+                          </div>
+                        )}
+                        
+                        {/* Step 2: File Selection */}
+                        {consolidatedStep === 2 && consolidatedFolder && (
+                          <div>
+                            <div style={{ marginBottom: '1rem' }}>
+                              <div style={{ 
+                                padding: '0.75rem', 
+                                backgroundColor: '#e8f1fd',
+                                borderRadius: '4px',
+                                border: '1px solid #0061d5',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span style={{ fontSize: '1.2rem' }}>📁</span>
+                                  <span style={{ fontWeight: '500' }}>Selected Folder: {consolidatedFolder.name}</span>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setConsolidatedFolder(null);
+                                    setConsolidatedStep(1);
+                                  }}
+                                  style={{
+                                    background: 'white',
+                                    color: '#5a5a5a',
+                                    border: '1px solid #dde2e9',
+                                    padding: '0.25rem 0.5rem',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.85rem'
+                                  }}
+                                >
+                                  Change
+                                </button>
+                              </div>
+                            </div>
+                            
+                            <h4>Select Consolidated File</h4>
+                            <div style={{ maxHeight: '400px', overflow: 'auto', border: '1px solid #dde2e9', borderRadius: '4px' }}>
+                              <FileSelector 
+                                folder={consolidatedFolder} 
+                                fileExtension=".xlsx" 
+                                onFileSelect={handleConsolidatedFileSelect} 
+                              />
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Step 3: Sheet Selection */}
+                        {consolidatedStep === 3 && consolidatedFolder && consolidatedFile && (
+                          <div>
+                            <div style={{ marginBottom: '1rem' }}>
+                              <div style={{ 
+                                padding: '0.75rem', 
+                                backgroundColor: '#e8f1fd',
+                                borderRadius: '4px',
+                                border: '1px solid #0061d5',
+                                marginBottom: '0.5rem',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span style={{ fontSize: '1.2rem' }}>📁</span>
+                                  <span style={{ fontWeight: '500' }}>Selected Folder: {consolidatedFolder.name}</span>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setConsolidatedFolder(null);
+                                    setConsolidatedFile(null);
+                                    setConsolidatedStep(1);
+                                  }}
+                                  style={{
+                                    background: 'white',
+                                    color: '#5a5a5a',
+                                    border: '1px solid #dde2e9',
+                                    padding: '0.25rem 0.5rem',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.85rem'
+                                  }}
+                                >
+                                  Change
+                                </button>
+                              </div>
+                              <div style={{ 
+                                padding: '0.75rem', 
+                                backgroundColor: '#e8f1fd',
+                                borderRadius: '4px',
+                                border: '1px solid #0061d5',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span style={{ fontSize: '1.2rem' }}>📄</span>
+                                  <span style={{ fontWeight: '500' }}>Selected File: {consolidatedFile.name}</span>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setConsolidatedFile(null);
+                                    setConsolidatedStep(2);
+                                  }}
+                                  style={{
+                                    background: 'white',
+                                    color: '#5a5a5a',
+                                    border: '1px solid #dde2e9',
+                                    padding: '0.25rem 0.5rem',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.85rem'
+                                  }}
+                                >
+                                  Change
+                                </button>
+                              </div>
+                            </div>
+                            
+                            <h4>Select Consolidated Sheet</h4>
+                            <div style={{ maxHeight: '400px', overflow: 'auto', border: '1px solid #dde2e9', borderRadius: '4px' }}>
+                              <SheetSelector 
+                                file={consolidatedFile} 
+                                onSheetSelect={handleConsolidatedSheetSelect} 
+                              />
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Step 4: Consolidated Selection Complete */}
+                        {consolidatedStep === 4 && consolidatedFolder && consolidatedFile && consolidatedSheet && (
+                          <div style={{ 
+                            padding: '1.5rem',
+                            background: '#e6f4ea',
+                            borderRadius: '8px',
+                            border: '1px solid #16813d',
+                            marginBottom: '1.5rem'
+                          }}>
+                            <h4 style={{ color: '#16813d', margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span>✓</span> Consolidated File Selection Complete
+                            </h4>
+                            
+                            <div style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '1.2rem' }}>📁</span>
+                              <strong>Folder:</strong> {consolidatedFolder.name}
+                            </div>
+                            
+                            <div style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '1.2rem' }}>📄</span>
+                              <strong>File:</strong> {consolidatedFile.name}
+                            </div>
+                            
+                            <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '1.2rem' }}>📊</span>
+                              <strong>Sheet:</strong> {consolidatedSheet}
+                            </div>
+                            
+                            <div>
+                              <button
+                                onClick={() => {
+                                  setConsolidatedStep(1);
+                                  setConsolidatedFolder(null);
+                                  setConsolidatedFile(null);
+                                  setConsolidatedSheet(null);
+                                }}
+                                style={{
+                                  background: 'white',
+                                  color: '#16813d',
+                                  border: '1px solid #16813d',
+                                  padding: '0.5rem 1rem',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Change Selection
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div style={{ 
+                        padding: '2rem', 
+                        textAlign: 'center', 
+                        background: '#f5f7fa',
+                        borderRadius: '8px',
+                        border: '1px solid #dde2e9',
+                        marginBottom: '1.5rem'
+                      }}>
+                        <p>Consolidated file selection is disabled.</p>
+                        <p>You will only need to select original and comparison files.</p>
+                      </div>
+                    )}
+                    
+                    <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                      <button
+                        onClick={handleConsolidatedStepComplete}
+                        disabled={useConsolidated && consolidatedStep < 4}
+                        style={{
+                          background: (!useConsolidated || consolidatedStep === 4) ? '#0061d5' : '#bdc3c7',
+                          color: 'white',
+                          border: 'none',
+                          padding: '0.75rem 1.5rem',
+                          borderRadius: '4px',
+                          cursor: (!useConsolidated || consolidatedStep === 4) ? 'pointer' : 'not-allowed',
+                          fontWeight: '500'
+                        }}
+                      >
+                        Continue to Original File
+                      </button>
+                    </div>
                   </div>
                 )}
                 
-                {/* Original File */}
+                {/* Step 2: Original File Selection */}
                 {currentStep === 2 && (
                   <div>
-                    <h3>Step 2: Select Original Excel File</h3>
-                    <p>Choose an Excel file from the selected folder.</p>
-                    <div style={{ marginBottom: '1rem' }}>
-                      <strong>Selected Folder:</strong> {originalFolder.name}
+                    <h3 style={{ marginTop: 0, marginBottom: '1.5rem' }}>Step 2: Original File</h3>
+                    
+                    {/* Step 1: Folder Selection */}
+                    {originalStep === 1 && (
+                      <div>
+                        <h4>Select Original Folder</h4>
+                        <div style={{ maxHeight: '400px', overflow: 'auto', border: '1px solid #dde2e9', borderRadius: '4px' }}>
+                          <FolderBrowser onFolderSelect={handleOriginalFolderSelect} />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Step 2: File Selection */}
+                    {originalStep === 2 && originalFolder && (
+                      <div>
+                        <div style={{ marginBottom: '1rem' }}>
+                          <div style={{ 
+                            padding: '0.75rem', 
+                            backgroundColor: '#e8f1fd',
+                            borderRadius: '4px',
+                            border: '1px solid #0061d5',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '1.2rem' }}>📁</span>
+                              <span style={{ fontWeight: '500' }}>Selected Folder: {originalFolder.name}</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setOriginalFolder(null);
+                                setOriginalStep(1);
+                              }}
+                              style={{
+                                background: 'white',
+                                color: '#5a5a5a',
+                                border: '1px solid #dde2e9',
+                                padding: '0.25rem 0.5rem',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '0.85rem'
+                              }}
+                            >
+                              Change
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <h4>Select Original File</h4>
+                        <div style={{ maxHeight: '400px', overflow: 'auto', border: '1px solid #dde2e9', borderRadius: '4px' }}>
+                          <FileSelector 
+                            folder={originalFolder} 
+                            fileExtension=".xlsx" 
+                            onFileSelect={handleOriginalFileSelect} 
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Step 3: Sheet Selection */}
+                    {originalStep === 3 && originalFolder && originalFile && (
+                      <div>
+                        <div style={{ marginBottom: '1rem' }}>
+                          <div style={{ 
+                            padding: '0.75rem', 
+                            backgroundColor: '#e8f1fd',
+                            borderRadius: '4px',
+                            border: '1px solid #0061d5',
+                            marginBottom: '0.5rem',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '1.2rem' }}>📁</span>
+                              <span style={{ fontWeight: '500' }}>Selected Folder: {originalFolder.name}</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setOriginalFolder(null);
+                                setOriginalFile(null);
+                                setOriginalStep(1);
+                              }}
+                              style={{
+                                background: 'white',
+                                color: '#5a5a5a',
+                                border: '1px solid #dde2e9',
+                                padding: '0.25rem 0.5rem',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '0.85rem'
+                              }}
+                            >
+                              Change
+                            </button>
+                          </div>
+                          <div style={{ 
+                            padding: '0.75rem', 
+                            backgroundColor: '#e8f1fd',
+                            borderRadius: '4px',
+                            border: '1px solid #0061d5',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '1.2rem' }}>📄</span>
+                              <span style={{ fontWeight: '500' }}>Selected File: {originalFile.name}</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setOriginalFile(null);
+                                setOriginalStep(2);
+                              }}
+                              style={{
+                                background: 'white',
+                                color: '#5a5a5a',
+                                border: '1px solid #dde2e9',
+                                padding: '0.25rem 0.5rem',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '0.85rem'
+                              }}
+                            >
+                              Change
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <h4>Select Original Sheet</h4>
+                        <div style={{ maxHeight: '400px', overflow: 'auto', border: '1px solid #dde2e9', borderRadius: '4px' }}>
+                          <SheetSelector 
+                            file={originalFile} 
+                            onSheetSelect={handleOriginalSheetSelect} 
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Step 4: Original Selection Complete */}
+                    {originalStep === 4 && originalFolder && originalFile && originalSheet && (
+                      <div style={{ 
+                        padding: '1.5rem',
+                        background: '#e6f4ea',
+                        borderRadius: '8px',
+                        border: '1px solid #16813d',
+                        marginBottom: '1.5rem'
+                      }}>
+                        <h4 style={{ color: '#16813d', margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span>✓</span> Original File Selection Complete
+                        </h4>
+                        
+                        <div style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '1.2rem' }}>📁</span>
+                          <strong>Folder:</strong> {originalFolder.name}
+                        </div>
+                        
+                        <div style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '1.2rem' }}>📄</span>
+                          <strong>File:</strong> {originalFile.name}
+                        </div>
+                        
+                        <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '1.2rem' }}>📊</span>
+                          <strong>Sheet:</strong> {originalSheet}
+                        </div>
+                        
+                        <div>
+                          <button
+                            onClick={() => {
+                              setOriginalStep(1);
+                              setOriginalFolder(null);
+                              setOriginalFile(null);
+                              setOriginalSheet(null);
+                            }}
+                            style={{
+                              background: 'white',
+                              color: '#16813d',
+                              border: '1px solid #16813d',
+                              padding: '0.5rem 1rem',
+                              borderRadius: '4px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Change Selection
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between' }}>
+                      <button
+                        onClick={() => setCurrentStep(1)}
+                        style={{
+                          background: '#f5f7fa',
+                          color: '#5a5a5a',
+                          border: '1px solid #dde2e9',
+                          padding: '0.75rem 1.5rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={handleOriginalStepComplete}
+                        disabled={originalStep < 4}
+                        style={{
+                          background: originalStep === 4 ? '#0061d5' : '#bdc3c7',
+                          color: 'white',
+                          border: 'none',
+                          padding: '0.75rem 1.5rem',
+                          borderRadius: '4px',
+                          cursor: originalStep === 4 ? 'pointer' : 'not-allowed',
+                          fontWeight: '500'
+                        }}
+                      >
+                        Continue to Comparison File
+                      </button>
                     </div>
-                    <FileSelector 
-                      folder={originalFolder} 
-                      fileExtension=".xlsx" 
-                      onFileSelect={handleOriginalFileSelect} 
-                    />
                   </div>
                 )}
                 
-                {/* Original Sheet */}
+                {/* Step 3: Comparison File Selection */}
                 {currentStep === 3 && (
                   <div>
-                    <h3>Step 3: Select Original Excel Sheet</h3>
-                    <p>Choose a sheet from the selected Excel file.</p>
-                    <div style={{ marginBottom: '1rem' }}>
-                      <div><strong>Selected Folder:</strong> {originalFolder.name}</div>
-                      <div><strong>Selected File:</strong> {originalFile.name}</div>
+                    <h3 style={{ marginTop: 0, marginBottom: '1.5rem' }}>Step 3: Comparison File</h3>
+                    
+                    {/* Step 1: Folder Selection */}
+                    {comparisonStep === 1 && (
+                      <div>
+                        <h4>Select Comparison Folder</h4>
+                        <div style={{ maxHeight: '400px', overflow: 'auto', border: '1px solid #dde2e9', borderRadius: '4px' }}>
+                          <FolderBrowser onFolderSelect={handleComparisonFolderSelect} />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Step 2: File Selection */}
+                    {comparisonStep === 2 && comparisonFolder && (
+                      <div>
+                        <div style={{ marginBottom: '1rem' }}>
+                          <div style={{ 
+                            padding: '0.75rem', 
+                            backgroundColor: '#e8f1fd',
+                            borderRadius: '4px',
+                            border: '1px solid #0061d5',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '1.2rem' }}>📁</span>
+                              <span style={{ fontWeight: '500' }}>Selected Folder: {comparisonFolder.name}</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setComparisonFolder(null);
+                                setComparisonStep(1);
+                              }}
+                              style={{
+                                background: 'white',
+                                color: '#5a5a5a',
+                                border: '1px solid #dde2e9',
+                                padding: '0.25rem 0.5rem',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '0.85rem'
+                              }}
+                            >
+                              Change
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <h4>Select Comparison File</h4>
+                        <div style={{ maxHeight: '400px', overflow: 'auto', border: '1px solid #dde2e9', borderRadius: '4px' }}>
+                          <FileSelector 
+                            folder={comparisonFolder} 
+                            fileExtension=".xlsx" 
+                            onFileSelect={handleComparisonFileSelect} 
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Step 3: Sheet Selection */}
+                    {comparisonStep === 3 && comparisonFolder && comparisonFile && (
+                      <div>
+                        <div style={{ marginBottom: '1rem' }}>
+                          <div style={{ 
+                            padding: '0.75rem', 
+                            backgroundColor: '#e8f1fd',
+                            borderRadius: '4px',
+                            border: '1px solid #0061d5',
+                            marginBottom: '0.5rem',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '1.2rem' }}>📁</span>
+                              <span style={{ fontWeight: '500' }}>Selected Folder: {comparisonFolder.name}</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setComparisonFolder(null);
+                                setComparisonFile(null);
+                                setComparisonStep(1);
+                              }}
+                              style={{
+                                background: 'white',
+                                color: '#5a5a5a',
+                                border: '1px solid #dde2e9',
+                                padding: '0.25rem 0.5rem',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '0.85rem'
+                              }}
+                            >
+                              Change
+                            </button>
+                          </div>
+                          <div style={{ 
+                            padding: '0.75rem', 
+                            backgroundColor: '#e8f1fd',
+                            borderRadius: '4px',
+                            border: '1px solid #0061d5',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '1.2rem' }}>📄</span>
+                              <span style={{ fontWeight: '500' }}>Selected File: {comparisonFile.name}</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setComparisonFile(null);
+                                setComparisonStep(2);
+                              }}
+                              style={{
+                                background: 'white',
+                                color: '#5a5a5a',
+                                border: '1px solid #dde2e9',
+                                padding: '0.25rem 0.5rem',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '0.85rem'
+                              }}
+                            >
+                              Change
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <h4>Select Comparison Sheet</h4>
+                        <div style={{ maxHeight: '400px', overflow: 'auto', border: '1px solid #dde2e9', borderRadius: '4px' }}>
+                          <SheetSelector 
+                            file={comparisonFile} 
+                            onSheetSelect={handleComparisonSheetSelect} 
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Step 4: Comparison Selection Complete */}
+                    {comparisonStep === 4 && comparisonFolder && comparisonFile && comparisonSheet && (
+                      <div style={{ 
+                        padding: '1.5rem',
+                        background: '#e6f4ea',
+                        borderRadius: '8px',
+                        border: '1px solid #16813d',
+                        marginBottom: '1.5rem'
+                      }}>
+                        <h4 style={{ color: '#16813d', margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span>✓</span> Comparison File Selection Complete
+                        </h4>
+                        
+                        <div style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '1.2rem' }}>📁</span>
+                          <strong>Folder:</strong> {comparisonFolder.name}
+                        </div>
+                        
+                        <div style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '1.2rem' }}>📄</span>
+                          <strong>File:</strong> {comparisonFile.name}
+                        </div>
+                        
+                        <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '1.2rem' }}>📊</span>
+                          <strong>Sheet:</strong> {comparisonSheet}
+                        </div>
+                        
+                        <div>
+                          <button
+                            onClick={() => {
+                              setComparisonStep(1);
+                              setComparisonFolder(null);
+                              setComparisonFile(null);
+                              setComparisonSheet(null);
+                            }}
+                            style={{
+                              background: 'white',
+                              color: '#16813d',
+                              border: '1px solid #16813d',
+                              padding: '0.5rem 1rem',
+                              borderRadius: '4px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Change Selection
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between' }}>
+                      <button
+                        onClick={() => setCurrentStep(2)}
+                        style={{
+                          background: '#f5f7fa',
+                          color: '#5a5a5a',
+                          border: '1px solid #dde2e9',
+                          padding: '0.75rem 1.5rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={handleComparisonStepComplete}
+                        disabled={comparisonStep < 4}
+                        style={{
+                          background: comparisonStep === 4 ? '#0061d5' : '#bdc3c7',
+                          color: 'white',
+                          border: 'none',
+                          padding: '0.75rem 1.5rem',
+                          borderRadius: '4px',
+                          cursor: comparisonStep === 4 ? 'pointer' : 'not-allowed',
+                          fontWeight: '500'
+                        }}
+                      >
+                        Continue to Comparison
+                      </button>
                     </div>
-                    <SheetSelector 
-                      file={originalFile} 
-                      onSheetSelect={handleOriginalSheetSelect} 
-                    />
                   </div>
                 )}
                 
-                {/* Comparison Folder */}
+                {/* Step 4: Comparison Results */}
                 {currentStep === 4 && (
                   <div>
-                    <h3>Step 4: Select Comparison Folder</h3>
-                    <p>Browse and select the folder containing your comparison Excel file.</p>
-                    <FolderBrowser onFolderSelect={handleComparisonFolderSelect} />
-                  </div>
-                )}
-                
-                {/* Comparison File */}
-                {currentStep === 5 && (
-                  <div>
-                    <h3>Step 5: Select Comparison Excel File</h3>
-                    <p>Choose an Excel file from the selected folder.</p>
-                    <div style={{ marginBottom: '1rem' }}>
-                      <strong>Selected Folder:</strong> {comparisonFolder.name}
-                    </div>
-                    <FileSelector 
-                      folder={comparisonFolder} 
-                      fileExtension=".xlsx" 
-                      onFileSelect={handleComparisonFileSelect} 
-                    />
-                  </div>
-                )}
-                
-                {/* Comparison Sheet */}
-                {currentStep === 6 && (
-                  <div>
-                    <h3>Step 6: Select Comparison Excel Sheet</h3>
-                    <p>Choose a sheet from the selected Excel file.</p>
+                    <h3 style={{ marginTop: 0, marginBottom: '1.5rem' }}>Step 4: Compare Excel Sheets</h3>
+                    
                     <div style={{ 
-                      marginBottom: '1rem', 
-                      padding: '0.75rem',
+                      padding: '1rem',
                       background: '#f5f7fa',
-                      borderRadius: '4px',
+                      borderRadius: '8px',
+                      marginBottom: '1.5rem',
                       border: '1px solid #dde2e9'
                     }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <input
-                          type="checkbox"
-                          checked={useConsolidated}
-                          onChange={handleToggleConsolidated}
-                        />
-                        Update a consolidated sheet as well
-                      </label>
+                      <h4 style={{ margin: '0 0 0.5rem 0' }}>Selected Files</h4>
+                      
+                      {useConsolidated && consolidatedFile && consolidatedSheet && (
+                        <div style={{ marginBottom: '0.5rem' }}>
+                          <strong>Consolidated:</strong> {consolidatedFile.name} / {consolidatedSheet}
+                        </div>
+                      )}
+                      
+                      <div style={{ marginBottom: '0.5rem' }}>
+                        <strong>Original:</strong> {originalFile.name} / {originalSheet}
+                      </div>
+                      
+                      <div>
+                        <strong>Comparison:</strong> {comparisonFile.name} / {comparisonSheet}
+                      </div>
                     </div>
-                    <div style={{ marginBottom: '1rem' }}>
-                      <div><strong>Selected Folder:</strong> {comparisonFolder.name}</div>
-                      <div><strong>Selected File:</strong> {comparisonFile.name}</div>
-                    </div>
-                    <SheetSelector 
-                      file={comparisonFile} 
-                      onSheetSelect={handleComparisonSheetSelect} 
-                    />
-                  </div>
-                )}
-                
-                {/* Consolidated Folder (Optional) */}
-                {currentStep === 7 && (
-                  <div>
-                    <h3>Step 7: Select Consolidated Folder</h3>
-                    <p>Browse and select the folder containing your consolidated Excel file.</p>
-                    <FolderBrowser onFolderSelect={handleConsolidatedFolderSelect} />
-                  </div>
-                )}
-                
-                {/* Consolidated File (Optional) */}
-                {currentStep === 8 && (
-                  <div>
-                    <h3>Step 8: Select Consolidated Excel File</h3>
-                    <p>Choose an Excel file from the selected folder.</p>
-                    <div style={{ marginBottom: '1rem' }}>
-                      <strong>Selected Folder:</strong> {consolidatedFolder.name}
-                    </div>
-                    <FileSelector 
-                      folder={consolidatedFolder} 
-                      fileExtension=".xlsx" 
-                      onFileSelect={handleConsolidatedFileSelect} 
-                    />
-                  </div>
-                )}
-                
-                {/* Consolidated Sheet (Optional) */}
-                {currentStep === 9 && (
-                  <div>
-                    <h3>Step 9: Select Consolidated Excel Sheet</h3>
-                    <p>Choose a sheet from the selected Excel file.</p>
-                    <div style={{ marginBottom: '1rem' }}>
-                      <div><strong>Selected Folder:</strong> {consolidatedFolder.name}</div>
-                      <div><strong>Selected File:</strong> {consolidatedFile.name}</div>
-                    </div>
-                    <SheetSelector 
-                      file={consolidatedFile} 
-                      onSheetSelect={handleConsolidatedSheetSelect} 
-                    />
-                  </div>
-                )}
-                
-                {/* Comparison Results */}
-                {currentStep === 10 && (
-                  <div>
-                    <h3>{useConsolidated ? 'Step 10' : 'Step 7'}: Compare Excel Sheets</h3>
+                    
                     <ComparisonResult 
                       originalFile={originalFile}
                       originalSheet={originalSheet}
@@ -543,6 +1104,22 @@ function App() {
                       consolidatedSheet={useConsolidated ? consolidatedSheet : null}
                       onComplete={handleComparisonComplete}
                     />
+                    
+                    <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-start' }}>
+                      <button
+                        onClick={() => setCurrentStep(3)}
+                        style={{
+                          background: '#f5f7fa',
+                          color: '#5a5a5a',
+                          border: '1px solid #dde2e9',
+                          padding: '0.75rem 1.5rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Back
+                      </button>
+                    </div>
                   </div>
                 )}
                 
